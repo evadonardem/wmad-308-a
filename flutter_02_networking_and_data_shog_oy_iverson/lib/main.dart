@@ -16,21 +16,18 @@ void main() async {
   print('Details of fake users $userId:');
   print(responseSingleUser.body);
 
-  // Fetch albums for the specific user
   var albumsEndpoint = '$apiBaseUrl/albums?userId=$userId';
   var responseAlbums = await http.get(Uri.parse(albumsEndpoint));
 
   print('Album of fake users $userId:');
   print(responseAlbums.body);
 
-  // Fetch todos for the specific user
   var todosEndpoint = '$apiBaseUrl/todos?userId=$userId';
   var responseTodos = await http.get(Uri.parse(todosEndpoint));
 
   print('To-do of fake users $userId:');
   print(responseTodos.body);
 
-  // Fetch posts for the specific user
   var postsEndpoint = '$apiBaseUrl/posts?userId=$userId';
   var responsePosts = await http.get(Uri.parse(postsEndpoint));
   
