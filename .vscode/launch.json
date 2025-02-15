@@ -1,0 +1,28 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "flutter_02_networking_and_data_shog_oy_iverson",
+            "cwd": "flutter_02_networking_and_data_shog_oy_iverson",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "flutter_02_networking_and_data_shog_oy_iverson (profile mode)",
+            "cwd": "flutter_02_networking_and_data_shog_oy_iverson",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "flutter_02_networking_and_data_shog_oy_iverson (release mode)",
+            "cwd": "flutter_02_networking_and_data_shog_oy_iverson",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}
