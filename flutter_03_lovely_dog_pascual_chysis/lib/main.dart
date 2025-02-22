@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:math';
+// ignore: depend_on_referenced_packages
+import 'package:english_words/english_words.dart';  // Import the english_words package
 
 void main() {
   runApp(const MyApp());
@@ -14,14 +15,6 @@ class DogBreed {
   factory DogBreed.fromJson(Map<String, dynamic> json) {
     return DogBreed(name: json['name'] as String);
   }
-}
-
-class Album {
-  final int userId;
-  final int id;
-  final String title;
-
-  const Album({required this.userId, required this.id, required this.title});
 }
 
 Future<List<DogBreed>> fetchDogBreeds() async {
@@ -82,20 +75,16 @@ class _MyHomePageState extends State<MyHomePage> {
   String? breedImageUrl;
   String? randomDogName;
 
-  final List<String> randomNames = [
-    'Buddy', 'Max', 'Bella', 'Lucy', 'Charlie', 'Molly', 'Rocky', 'Daisy', 'Luna', 'Zoe'
-  ];
-
   @override
   void initState() {
     super.initState();
     futureDogBreeds = fetchDogBreeds();
   }
 
-  // Function to generate a random name
-  String getRandomName() {
-    final random = Random();
-    return randomNames[random.nextInt(randomNames.length)];
+  // Function to generate a random dog name using the word pair generator
+  String getRandomDogName() {
+    final randomPair = WordPair.random();  // Generates a random word pair
+    return randomPair.asPascalCase;  // Converts the pair into PascalCase (e.g., "FluffyPuppy")
   }
 
   @override
@@ -127,7 +116,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       setState(() {
                         selectedBreed = newValue;
                         breedImageUrl = null;
-                        randomDogName = getRandomName(); // Generate a random name when breed is selected
+                        randomDogName = getRandomDogName(); // Generate a random word pair for the dog name
                       });
                       if (newValue != null) {
                         fetchBreedImage(newValue.name).then((imageUrl) {
@@ -150,7 +139,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             if (selectedBreed != null)
               Text(
-                'Dog_Breed: ${selectedBreed!.name} | Name: $randomDogName', // Show breed and random name
+                'Dog_Breed: ${selectedBreed!.name} | Name: $randomDogName', // Show breed and generated name
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             if (breedImageUrl != null)
