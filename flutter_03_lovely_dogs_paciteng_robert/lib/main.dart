@@ -77,7 +77,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 212, 30, 152)),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Dog Selector by Rey'),
+      home: const MyHomePage(title: 'Dog Selector by Robert'),
     );
   }
 }
