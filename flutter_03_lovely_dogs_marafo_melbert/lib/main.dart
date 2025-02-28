@@ -34,22 +34,20 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late Future<List<Breed>> futureBreeds;
-  Future<BreedImage>? futureSelectedImageUrl;
+  late Future<List<Dog>> futureDogs;
+  Future<Dog>? futureSelectedDog;
   bool hasSelection = false;
-  var wordPair = "";
 
   @override
   void initState() {
     super.initState();
-    futureBreeds = fetchBreeds();
+    futureDogs = fetchDogs();
   }
 
-  void handleBreedSelection(Breed breed) {
+  void handleDogSelection(Dog dog) {
     setState(() {
-      wordPair = WordPair.random().join("");
       hasSelection = true;
-      futureSelectedImageUrl = fetchRandomAnimalFromBreed(breed.name);
+      futureSelectedDog = fetchRandomDogImage(dog.breed);
     });
   }
 
@@ -67,53 +65,55 @@ class _MyHomePageState extends State<MyHomePage> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
-                "Select a Dog Breed",
+                "Select a Dog",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
-            FutureBuilder<List<Breed>>(
-                future: futureBreeds,
+            FutureBuilder<List<Dog>>(
+                future: futureDogs,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const CircularProgressIndicator();
-                  } else if (snapshot.hasError) {
-                    return Text('${snapshot.error}');
                   } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-                    var breeds = snapshot.data!;
+                    var dogs = snapshot.data!;
                     return DropdownMenu(
-                      dropdownMenuEntries: breeds
-                          .map((breed) => DropdownMenuEntry(
-                              value: breed, label: breed.name.toUpperCase()))
+                      dropdownMenuEntries: dogs
+                          .map((dog) => DropdownMenuEntry(
+                              value: dog, label: dog.breed.toUpperCase()))
                           .toList(),
                       onSelected: (value) {
-                        if (value != null) handleBreedSelection(value);
+                        if (value != null) handleDogSelection(value);
                       },
                     );
                   }
-                  return const Text("No breeds found.");
+                  return const Text("No dogs found.");
                 }),
-            if (hasSelection && futureSelectedImageUrl != null)
-              FutureBuilder<BreedImage>(
-                  future: futureSelectedImageUrl,
+            if (hasSelection && futureSelectedDog != null)
+              FutureBuilder<Dog>(
+                  future: futureSelectedDog,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const CircularProgressIndicator();
-                    } else if (snapshot.hasError) {
-                      return Text('${snapshot.error}');
                     } else if (snapshot.hasData) {
-                      return Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Image.network(
-                          snapshot.data!.imageUrl,
-                          height: 300,
-                        ),
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Image.network(
+                              snapshot.data!.imageUrl,
+                              height: 300,
+                            ),
+                          ),
+                          Text(
+                            snapshot.data!.name.toUpperCase(),
+                            style: TextStyle(
+                                fontSize: 32, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       );
                     }
                     return const SizedBox();
                   }),
-            Text(
-              wordPair.toUpperCase(),
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),)
           ],
         ),
       ),
@@ -121,48 +121,48 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class Breed {
+class Dog {
+  final String breed;
   final String name;
-
-  Breed({required this.name});
-
-  factory Breed.fromJson(String name) {
-    return Breed(name: name);
-  }
-}
-
-class BreedImage {
   final String imageUrl;
 
-  BreedImage({required this.imageUrl});
+  Dog({required this.breed, required this.name, required this.imageUrl});
 
-  factory BreedImage.fromJson(Map<String, dynamic> json) {
-    return BreedImage(imageUrl: json['message']);
+  factory Dog.withRandomName(String breed, String imageUrl) {
+    return Dog(breed: breed, name: WordPair.random().join(""), imageUrl: imageUrl);
   }
 }
 
-Future<List<Breed>> fetchBreeds() async {
+Future<List<Dog>> fetchDogs() async {
   final dogBreedsEndpoint = 'https://dog.ceo/api/breeds/list/all';
   final response = await http.get(Uri.parse(dogBreedsEndpoint));
 
   if (response.statusCode == 200) {
     final data = jsonDecode(response.body);
-    List<Breed> breeds =
-        List.from(data['message'].keys.map((name) => Breed.fromJson(name)));
-    return breeds;
+    List<Dog> dogs = [];
+    for (var breed in data['message'].keys) {
+      final image = await fetchRandomDogImageUrl(breed);
+      dogs.add(Dog.withRandomName(breed, image));
+    }
+    return dogs;
   } else {
-    throw Exception('Failed to fetch breeds');
+    throw Exception('Failed to fetch dogs');
   }
 }
 
-Future<BreedImage> fetchRandomAnimalFromBreed(String breed) async {
-  final dogBreedsEndpoint = 'https://dog.ceo/api/breed/$breed/images/random';
-  final response = await http.get(Uri.parse(dogBreedsEndpoint));
+Future<String> fetchRandomDogImageUrl(String breed) async {
+  final dogImageEndpoint = 'https://dog.ceo/api/breed/$breed/images/random';
+  final response = await http.get(Uri.parse(dogImageEndpoint));
 
   if (response.statusCode == 200) {
     final data = jsonDecode(response.body);
-    return BreedImage.fromJson(data);
+    return data['message'];
   } else {
-    throw Exception('Failed to fetch image from breed');
+    throw Exception('Failed to fetch image for breed');
   }
+}
+
+Future<Dog> fetchRandomDogImage(String breed) async {
+  final imageUrl = await fetchRandomDogImageUrl(breed);
+  return Dog.withRandomName(breed, imageUrl);
 }
