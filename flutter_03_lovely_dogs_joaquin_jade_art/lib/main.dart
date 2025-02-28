@@ -66,7 +66,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 109, 104, 104)),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Dog Breeds Selector'),
+      home: const MyHomePage(title: 'Lovely Dogs By Jade Art Joaquin'),
     );
   }
 }
