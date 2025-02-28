@@ -7,51 +7,62 @@ void main() {
   runApp(const MyApp());
 }
 
-// Required ** 
-class Album {
-  final int userId;
-  final int id;
-  final String title;
-
-  const Album({required this.userId, required this.id, required this.title});
-}
-
-class DogBreed {
+class Dog {
   final String name;
+  final String imageUrl;
 
-  const DogBreed({required this.name});
+  Dog({required this.name, required this.imageUrl});
 
-  factory DogBreed.fromJson(Map<String, dynamic> json) {
-    return DogBreed(
-      name: json['name'] as String,
-    );
+  factory Dog.fromJson(WordPair name, Map<String, dynamic> json) {
+    return Dog(name: name.asPascalCase, imageUrl: json['message']);
+  }
+
+  @override
+  String toString() {
+    return 'Dog Name: $name, Image URL: $imageUrl';
   }
 }
 
-Future<List<DogBreed>> fetchDogBreeds() async {
-  var dogBreedsAPI = 'https://dog.ceo/api/breeds/list/all';
-  final response = await http.get(Uri.parse(dogBreedsAPI));
-
+Future<List<String>> fetchDogBreeds() async {
+  final response = await http.get(Uri.parse('https://dog.ceo/api/breeds/list/all'));
   if (response.statusCode == 200) {
-    var data = json.decode(response.body);
-    var breeds = (data['message'] as Map<String, dynamic>).keys.map(
-      (key) => DogBreed(name: key),
-    ).toList();
-    return breeds;
+    final data = jsonDecode(response.body);
+    return List<String>.from(data['message'].keys);
   } else {
     throw Exception('Failed to load dog breeds');
   }
 }
 
-Future<String> fetchBreedImage(String breed) async {
-  var breedImageAPI = 'https://dog.ceo/api/breed/$breed/images/random';
-  final response = await http.get(Uri.parse(breedImageAPI));
-
+Future<Dog> fetchDog(String breed) async {
+  final response = await http.get(Uri.parse('https://dog.ceo/api/breed/$breed/images/random'));
   if (response.statusCode == 200) {
-    var data = json.decode(response.body);
-    return data['message'];
+    final data = jsonDecode(response.body);
+    WordPair dogName = WordPair.random();
+    Dog dog = Dog.fromJson(dogName, data);
+    print(dog);
+    return dog;
   } else {
-    throw Exception('Failed to load breed image');
+    throw Exception('Failed to load dog image');
+  }
+}
+
+class MyAppState extends ChangeNotifier {
+  var current = WordPair.random();
+
+  void getNext() {
+    current = WordPair.random();
+    notifyListeners();
+  }
+
+  var favorites = <WordPair>[];
+
+  void toggleFavorite() {
+    if (favorites.contains(current)) {
+      favorites.remove(current);
+    } else {
+      favorites.add(current);
+    }
+    notifyListeners();
   }
 }
 
@@ -61,23 +72,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Dog Breed Selector by Ganado',
+      title: 'Dog Breed',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.purple), // Change to violet
         useMaterial3: true,
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
-          bodyMedium: TextStyle(color: Colors.black),
-        ),
       ),
-      home: const MyHomePage(title: 'Dog Breed Selector by Ganado'),
+      home: const MyHomePage(title: 'Lovely Dogs by Ganado, Linson'),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
   final String title;
 
   @override
@@ -85,168 +91,81 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late Future<List<DogBreed>> futureDogBreeds;
-  DogBreed? selectedBreed;
-  String? breedImageUrl;
-  String? dogName;
+  late Future<List<String>> futureDogBreeds;
+  Dog? selectedDog;
+  final MyAppState appState = MyAppState();
 
   @override
   void initState() {
     super.initState();
     futureDogBreeds = fetchDogBreeds();
-    dogName = _generateRandomName();  // Generate a random name on init
   }
 
-  // Generate a random dog name using WordPair
-  String _generateRandomName() {
-    WordPair randomPair = generateWordPairs().take(1).first;
-    return randomPair.asPascalCase;
-  }
-
-  void _onBreedChanged(DogBreed? newBreed) async {
+  void fetchDogData(String breed) async {
+    final dog = await fetchDog(breed);
     setState(() {
-      selectedBreed = newBreed;
-      breedImageUrl = null;
-      dogName = _generateRandomName(); // Update random dog name when breed changes
+      selectedDog = dog;
+      appState.getNext();
     });
-
-    if (newBreed != null) {
-      try {
-        String imageUrl = await fetchBreedImage(newBreed.name);
-        setState(() {
-          breedImageUrl = imageUrl;
-        });
-      } catch (e) {
-        setState(() {
-          breedImageUrl = null;
-        });
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary, // Will now be a violet shade
         title: Text(widget.title),
-        centerTitle: true,
-        backgroundColor: Colors.deepPurple,
-        elevation: 0,
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.deepPurple.shade200, Colors.deepPurple.shade600],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                FutureBuilder<List<DogBreed>>(
-                  future: futureDogBreeds,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      );
-                    } else if (snapshot.hasError) {
-                      return Text('Error: ${snapshot.error}');
-                    } else if (snapshot.hasData) {
-                      return Card(
-                        elevation: 10,
-                        shadowColor: Colors.deepPurpleAccent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            FutureBuilder(
+                future: futureDogBreeds,
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          labelText: 'Select a Breed',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          fillColor: Colors.purple.shade50, // Change to a lighter violet
                         ),
-                        color: Colors.white,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            children: [
-                              DropdownButton<DogBreed>(
-                                value: selectedBreed,
-                                hint: const Text(
-                                  'Select a breed',
-                                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                                ),
-                                items: snapshot.data!.map((DogBreed breed) {
-                                  return DropdownMenuItem<DogBreed>(
-                                    value: breed,
-                                    child: Text(
-                                      breed.name,
-                                      style: const TextStyle(
-                                          fontSize: 18, fontWeight: FontWeight.w600),
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: _onBreedChanged,
-                                isExpanded: true,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                dropdownColor: Colors.white,
-                                icon: const Icon(
-                                  Icons.arrow_drop_down,
-                                  color: Colors.deepPurple,
-                                ),
-                                iconSize: 30,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    } else {
-                      return const Text('No data available');
-                    }
-                  },
-                ),
-                const SizedBox(height: 20),
-                if (selectedBreed != null)
-                  Card(
-                    elevation: 10,
-                    shadowColor: Colors.deepPurpleAccent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        'Selected Breed: ${selectedBreed!.name}\nDog Name: $dogName',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.deepPurple,
-                        ),
+                        value: null,
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.purple), // Change to violet icon
+                        style: const TextStyle(color: Colors.purple, fontSize: 16), // Change to violet text color
+                        items: snapshot.requireData
+                            .map((breed) => DropdownMenuItem(
+                                  value: breed,
+                                  child: Text(breed.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ))
+                            .toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            fetchDogData(newValue);
+                          }
+                        },
                       ),
-                    ),
-                  ),
-                const SizedBox(height: 20),
-                if (breedImageUrl != null)
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        breedImageUrl!,
-                        fit: BoxFit.cover,
-                        height: 250,
-                        width: 250,
-                      ),
-                    ),
-                  ),
-                if (breedImageUrl == null && selectedBreed != null)
-                  const CircularProgressIndicator(),
-              ],
-            ),
-          ),
+                    );
+                  } else if (snapshot.hasError) {
+                    return Text('${snapshot.error}');
+                  }
+                  return const CircularProgressIndicator();
+                },
+              ),
+            const SizedBox(height: 20),
+            if (selectedDog != null) ...[
+              Image.network(selectedDog!.imageUrl, height: 400, width: 400, fit: BoxFit.cover),
+              const SizedBox(height: 10),
+              Text(
+                'Dog Name: ${selectedDog!.name}',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ],
         ),
       ),
     );
