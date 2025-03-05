@@ -13,20 +13,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Dog',
+      title: 'Flutter Jr Dog',
       theme: ThemeData(
         colorScheme: ColorScheme(
           primary: Color(0xFFfbfef9), // Light color
           primaryContainer: Color(0xFF0e79b2), // Blue
           secondary: Color(0xFF191923), // Dark color
           secondaryContainer: Color(0xFF0e79b2), // Blue
-          surface: Color(0xFFfbfef9), // Light surface
-          background: Color(0xFFfbfef9), // Light background
+          surface: Color(0xFFfbfef9), // Light background
           error: Colors.red, // Red for errors
           onPrimary: Colors.black,
           onSecondary: Colors.white,
           onSurface: Colors.black,
-          onBackground: Colors.black,
           onError: Colors.white,
           brightness: Brightness.light,
         ),
