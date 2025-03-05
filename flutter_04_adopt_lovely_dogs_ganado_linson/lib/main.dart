@@ -379,7 +379,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       Center(
         child: SizedBox(
-          width: 350, // Adjust the width to center the list
+          width: 350, // ADJUST
           child: ListView.builder(
             itemCount: likedDogs.length,
             itemBuilder: (context, index) {
