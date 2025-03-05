@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:english_words/english_words.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,116 +10,617 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Flutter Dog',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme(
+          primary: Color(0xFFb2c2bf), // HEX: #b2c2bf
+          primaryContainer: Color(0xFFc0ded9), // HEX: #c0ded9
+          secondary: Color(0xFFeaece5), // HEX: #eaece5
+          secondaryContainer: Color(0xFF3b3a30), // HEX: #3b3a30
+          surface: Color(0xFF3b3a30), // HEX: #3b3a30
+          error: Color(0xFFD32F2F), // Red for errors
+          onPrimary: Colors.black,
+          onSecondary: Colors.black,
+          onSurface: Colors.white,
+          onError: Colors.white,
+          brightness: Brightness.light,
+        ),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+  const MyHomePage({super.key});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  late Future<List<Dog>> futureDogs;
+  Future<Dog>? futureSelectedDog;
+  bool hasSelection = false;
+  bool isLoadingImage = false;
+  Dog? selectedDog;
+  List<Dog> filteredDogs = [];
+  TextEditingController searchController = TextEditingController();
+  bool showDropdown = false;
+  List<Dog> likedDogs = [];
+  List<Dog> givenDogs = [];
+  int _selectedIndex = 0;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  @override
+  void initState() {
+    super.initState();
+    futureDogs = fetchDogs();
+    futureDogs.then((dogs) {
+      setState(() {
+        filteredDogs = dogs;
+      });
     });
+  }
+
+  void handleDogSelection(Dog dog) {
+    setState(() {
+      hasSelection = true;
+      isLoadingImage = true;
+      futureSelectedDog = fetchRandomDogImage(dog.breed).then((dog) {
+        setState(() {
+          isLoadingImage = false;
+          selectedDog = dog;
+        });
+        return dog;
+      });
+      showDropdown = false;
+      searchController.text = dog.breed.toUpperCase();
+    });
+  }
+
+  void filterDogs(String query) {
+    futureDogs.then((dogs) {
+      setState(() {
+        filteredDogs = dogs
+            .where(
+                (dog) => dog.breed.toLowerCase().contains(query.toLowerCase()))
+            .toList();
+        showDropdown = true;
+      });
+    });
+  }
+
+  void likeDog(Dog dog) {
+    setState(() {
+      if (!likedDogs.any((likedDog) =>
+          likedDog.imageUrl == dog.imageUrl && likedDog.name == dog.name)) {
+        likedDogs.add(dog);
+      }
+    });
+  }
+
+  void fetchNextDog() {
+    if (selectedDog != null) {
+      setState(() {
+        isLoadingImage = true;
+        futureSelectedDog = fetchRandomDogImage(selectedDog!.breed).then((dog) {
+          setState(() {
+            isLoadingImage = false;
+            selectedDog = dog;
+          });
+          return dog;
+        });
+      });
+    }
+  }
+
+  void giveDog(Dog dog) {
+    setState(() {
+      likedDogs.remove(dog);
+      givenDogs.add(dog);
+    });
+  }
+
+  void deleteGivenDog(Dog dog) {
+    setState(() {
+      givenDogs.remove(dog);
+    });
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  List<Widget> _buildPages() {
+    return [
+      SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 50.0), // Adjust the top padding here
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    "Select a Dog",
+                    style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
+                FutureBuilder<List<Dog>>(
+                  future: futureDogs,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator(
+                        color: Color(0xFF8D99AE),
+                      );
+                    } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                      return Column(
+                        children: [
+                          SizedBox(
+                            width: 300, // Set the width of the TextField
+                            child: Stack(
+                              children: [
+                                TextField(
+                                  controller: searchController,
+                                  decoration: InputDecoration(
+                                    hintText: "Type to search...",
+                                    hintStyle: TextStyle(color: Colors.white),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(Icons.arrow_drop_down, color: Colors.white),
+                                      onPressed: () {
+                                        setState(() {
+                                          showDropdown = !showDropdown;
+                                        });
+                                      },
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(color: Colors.white),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(color: Colors.white),
+                                    ),
+                                  ),
+                                  style: TextStyle(color: Colors.white),
+                                  onChanged: (value) {
+                                    filterDogs(value);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (showDropdown)
+                            Container(
+                              width: 300, // Match the width of the TextField
+                              constraints: BoxConstraints(maxHeight: 200),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: filteredDogs.length,
+                                itemBuilder: (context, index) {
+                                  return ListTile(
+                                    title: Text(filteredDogs[index]
+                                        .breed
+                                        .toUpperCase(), style: TextStyle(color: Colors.white)),
+                                    onTap: () {
+                                      handleDogSelection(filteredDogs[index]);
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
+                      );
+                    }
+                    return const Text("No dogs found.", style: TextStyle(color: Colors.white));
+                  },
+                ),
+                if (hasSelection)
+                  isLoadingImage
+                      ? Padding(
+                          padding: const EdgeInsets.only(
+                              top: 20.0), // Adjust the position to be lower
+                          child: const CircularProgressIndicator(
+                            color: Color(0xFF8D99AE),
+                          ),
+                        )
+                      : FutureBuilder<Dog>(
+                          future: futureSelectedDog,
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              return Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Image.network(
+                                      snapshot.data!.imageUrl,
+                                      width: 250, // Increased width
+                                      height: 250, // Increased height
+                                      fit: BoxFit.cover, // Ensure the image covers the box
+                                    ),
+                                  ),
+                                  Text(
+                                    snapshot.data!.name.toUpperCase(),
+                                    style: TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white),
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          likeDog(snapshot.data!);
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Color(0xFF8D99AE), // Button color
+                                          shadowColor: Colors.white,
+                                          elevation: 0, // No shadow by default
+                                          textStyle: TextStyle(color: Colors.white),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ).copyWith(
+                                          elevation: WidgetStateProperty.resolveWith<double>(
+                                            (Set<WidgetState> states) {
+                                              if (states.contains(WidgetState.hovered)) {
+                                                return 10;
+                                              }
+                                              return 0;
+                                            },
+                                          ),
+                                          shape: WidgetStateProperty.resolveWith<OutlinedBorder>(
+                                            (Set<WidgetState> states) {
+                                              if (states.contains(WidgetState.hovered)) {
+                                                return RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                );
+                                              }
+                                              return RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              );
+                                            },
+                                          ),
+                                          backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                                            (Set<WidgetState> states) {
+                                              if (states.contains(WidgetState.hovered)) {
+                                                return Color(0xFFB0BEC5);
+                                              }
+                                              return Color(0xFF8D99AE);
+                                            },
+                                          ),
+                                          overlayColor: WidgetStateProperty.resolveWith<Color>(
+                                            (Set<WidgetState> states) {
+                                              if (states.contains(WidgetState.hovered)) {
+                                                // ignore: deprecated_member_use
+                                                return Colors.white.withOpacity(0.1);
+                                              }
+                                              return Colors.transparent;
+                                            },
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          "Adopt",
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ),
+                                      SizedBox(width: 16),
+                                      ElevatedButton(
+                                        onPressed: fetchNextDog,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Color(0xFF8D99AE), // Button color
+                                          shadowColor: Colors.white,
+                                          elevation: 0, // No shadow by default
+                                          textStyle: TextStyle(color: Colors.white),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ).copyWith(
+                                          elevation: WidgetStateProperty.resolveWith<double>(
+                                            (Set<WidgetState> states) {
+                                              if (states.contains(WidgetState.hovered)) {
+                                                return 10;
+                                              }
+                                              return 0;
+                                            },
+                                          ),
+                                          shape: WidgetStateProperty.resolveWith<OutlinedBorder>(
+                                            (Set<WidgetState> states) {
+                                              if (states.contains(WidgetState.hovered)) {
+                                                return RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                );
+                                              }
+                                              return RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              );
+                                            },
+                                          ),
+                                          backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                                            (Set<WidgetState> states) {
+                                              if (states.contains(WidgetState.hovered)) {
+                                                return Color(0xFFB0BEC5);
+                                              }
+                                              return Color(0xFF8D99AE);
+                                            },
+                                          ),
+                                          overlayColor: WidgetStateProperty.resolveWith<Color>(
+                                            (Set<WidgetState> states) {
+                                              if (states.contains(WidgetState.hovered)) {
+                                                // ignore: deprecated_member_use
+                                                return Colors.white.withOpacity(0.1);
+                                              }
+                                              return Colors.transparent;
+                                            },
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          "Next",
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              );
+                            }
+                            return const SizedBox();
+                          }),
+              ],
+            ),
+          ),
+        ),
+      ),
+      Center(
+        child: SizedBox(
+          width: 350, // Adjust the width to center the list
+          child: ListView.builder(
+            itemCount: likedDogs.length,
+            itemBuilder: (context, index) {
+              return Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Color(0xFF8D99AE), // Border color
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                margin: const EdgeInsets.symmetric(vertical: 5),
+                child: ListTile(
+                  leading: Image.network(
+                    likedDogs[index].imageUrl,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                  ),
+                  title: Text(likedDogs[index].breed, style: TextStyle(color: Colors.white)),
+                  subtitle: Text(likedDogs[index].name, style: TextStyle(color: Colors.white)),
+                  trailing: ElevatedButton(
+                    onPressed: () {
+                      giveDog(likedDogs[index]);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF8D99AE), // Button color
+                      shadowColor: Colors.white,
+                      elevation: 0, // No shadow by default
+                      textStyle: TextStyle(color: Colors.white),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ).copyWith(
+                      elevation: WidgetStateProperty.resolveWith<double>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.hovered)) {
+                            return 10;
+                          }
+                          return 0;
+                        },
+                      ),
+                      shape: WidgetStateProperty.resolveWith<OutlinedBorder>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.hovered)) {
+                            return RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            );
+                          }
+                          return RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          );
+                        },
+                      ),
+                      backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.hovered)) {
+                            return Color(0xFFB0BEC5);
+                          }
+                          return Color(0xFF8D99AE);
+                        },
+                      ),
+                      overlayColor: WidgetStateProperty.resolveWith<Color>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.hovered)) {
+                            // ignore: deprecated_member_use
+                            return Colors.white.withOpacity(0.1);
+                          }
+                          return Colors.transparent;
+                        },
+                      ),
+                    ),
+                    child: const Text(
+                      "Give",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+      Center(
+        child: SizedBox(
+          width: 350, // Adjust the width to center the list
+          child: ListView.builder(
+            itemCount: givenDogs.length,
+            itemBuilder: (context, index) {
+              return Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Color(0xFF8D99AE), // Border color
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                margin: const EdgeInsets.symmetric(vertical: 5),
+                child: ListTile(
+                  leading: Image.network(
+                    givenDogs[index].imageUrl,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                  ),
+                  title: Text(givenDogs[index].breed, style: TextStyle(color: Colors.white)),
+                  subtitle: Text(givenDogs[index].name, style: TextStyle(color: Colors.white)),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete, color: Colors.white),
+                    onPressed: () {
+                      deleteGivenDog(givenDogs[index]);
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+      Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 50,
+                backgroundImage: NetworkImage('https://scontent.fmnl17-1.fna.fbcdn.net/v/t39.30808-1/475796915_1278283660123368_4722941500218312188_n.jpg?stp=dst-jpg_s200x200_tt6&_nc_cat=100&ccb=1-7&_nc_sid=1d2534&_nc_eui2=AeFp1VZMql_qMUuSSOKdargRdZbAhKIbJsh1lsCEohsmyPYq9Qfr1pfxvUtNMIy7s7oFqRdHrZLgof45-0QKnSJM&_nc_ohc=rHUHt4fQeVMQ7kNvgGKGTv9&_nc_oc=AdimVi6bbig9v2SX-s7diaocLa36JXb2Zb15qAPY6iLJEgTHDhZtZg8lr-5YC_q_QYs&_nc_zt=24&_nc_ht=scontent.fmnl17-1.fna&_nc_gid=Akf37xIH56ZUbldYflcZ4JG&oh=00_AYAhgde-q4a-5APmsp8NgQr8lCt8_IQlTZUutuuQt_gQpQ&oe=67C888DA'), // Replace with your profile picture URL
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Linson',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Dog Lover & Rescuer',
+                style: TextStyle(fontSize: 18, color: Colors.white70),
+              ),
+              SizedBox(height: 16),
+              Card(
+                color: Color(0xFF3b3a30),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Hi, I am Linson, and I am passionate about giving dogs a second chance at a loving home! This page is dedicated to helping rescue dogs find their forever families. Whether you are looking to adopt, learn about responsible pet ownership, or support rescued pups, you are in the right place. Join me in making a difference—one wagging tail at a time! 🐶❤️',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  // Add your contact action here
+                },
+                icon: Icon(Icons.email, color: Colors.white),
+                label: Text('Contact Me', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF8D99AE),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+      body: _buildPages().elementAt(_selectedIndex),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.favorite), label: 'Adopted Dogs'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.card_giftcard), label: 'Given Dogs'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'About Me'),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Color(0xFFEDF2F4), // Color for the selected item
+        unselectedItemColor: Color(0xFF8D99AE),
+        backgroundColor: Color(0xFF2B2D42),
+        showUnselectedLabels: true,
+        onTap: _onItemTapped,
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
+}
+
+class Dog {
+  final String breed;
+  final String name;
+  final String imageUrl;
+
+  Dog({required this.breed, required this.name, required this.imageUrl});
+
+  factory Dog.withRandomName(String breed, String imageUrl) {
+    return Dog(
+        breed: breed, name: WordPair.random().join(""), imageUrl: imageUrl);
+  }
+}
+
+Future<List<Dog>> fetchDogs() async {
+  final dogBreedsEndpoint = 'https://dog.ceo/api/breeds/list/all';
+  final response = await http.get(Uri.parse(dogBreedsEndpoint));
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    List<Dog> dogs = [];
+    for (var breed in data['message'].keys) {
+      dogs.add(Dog(breed: breed, name: WordPair.random().join(), imageUrl: ''));
+    }
+    return dogs;
+  } else {
+    throw Exception('Failed to fetch dogs');
+  }
+}
+
+Future<String> fetchRandomDogImageUrl(String breed) async {
+  final dogImageEndpoint = 'https://dog.ceo/api/breed/$breed/images/random';
+  final response = await http.get(Uri.parse(dogImageEndpoint));
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    return data['message'];
+  } else {
+    throw Exception('Failed to fetch image for breed');
+  }
+}
+
+Future<Dog> fetchRandomDogImage(String breed) async {
+  final imageUrl = await fetchRandomDogImageUrl(breed);
+  return Dog.withRandomName(breed, imageUrl);
 }
