@@ -49,7 +49,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  /// Save the current preferences to SharedPrefe
+  /// Save the current preferences to Shar
   Future<void> _savePreferences() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setBool('darkMode', _isDarkMode);
