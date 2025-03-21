@@ -7,7 +7,23 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:english_words/english_words.dart';
 
-import 'models.dart';
+class Dog {
+  final id;
+  final String name;
+  final String breed;
+  final String photo;
+
+  Dog({this.id, required this.name, required this.breed, required this.photo});
+
+  Map<String, Object?> toMap() {
+    return {'id': id, 'name': name, 'breed': breed, 'photo': photo};
+  }
+
+  @override
+  String toString() {
+    return 'Dog{name: $name, breed: $breed, photo: $photo}';
+  }  
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
