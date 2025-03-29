@@ -21,7 +21,6 @@ class Dog {
     };
   }
 
-  // Create a Dog object from a Map
   factory Dog.fromMap(Map<String, dynamic> map) {
     return Dog(
       id: map['id'] as int?,

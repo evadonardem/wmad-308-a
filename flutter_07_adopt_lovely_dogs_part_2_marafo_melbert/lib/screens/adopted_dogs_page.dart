@@ -1,6 +1,3 @@
-
-// lib/screens/adopted_dogs_page.dart
-
 import 'package:flutter/material.dart';
 import '../models.dart';
 

@@ -24,10 +24,8 @@ Future<List<Dog>> fetchDogs() async {
         Dog dog = Dog.withRandomName(breed, image);
         dogs.add(dog);
 
-        // Insert the dog into the database
         await db.addDog(dog, 'dogs');
       } catch (e) {
-        // Log errors for specific breeds but continue processing others
         print('Error fetching image for breed $breed: $e');
       }
     }

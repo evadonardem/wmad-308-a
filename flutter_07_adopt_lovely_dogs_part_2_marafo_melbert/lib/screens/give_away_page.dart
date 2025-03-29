@@ -1,7 +1,3 @@
-
-
-// lib/screens/give_away_page.dart
-
 import 'package:flutter/material.dart';
 import '../models.dart';
 
