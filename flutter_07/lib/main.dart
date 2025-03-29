@@ -532,12 +532,12 @@ class AboutMeScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: const <Widget>[
           Text(
-            'Dudz Adopt a Dog',
+            'Alona Adopt a Dog',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 10),
           Text(
-            'This app showcases adoption for dogs. You can choose a dog you want to adopt and if youre tired of them you can give them away!!!',
+            'This app showcases adoption for dogs.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16),
           ),
