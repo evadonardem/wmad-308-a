@@ -2,24 +2,33 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:english_words/english_words.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-  runApp(const MyApp());
   databaseFactory = databaseFactoryFfi;
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => MyAppState(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class Dog {
-  String name; 
+  String name;
   final String breed;
   final String imageUrl;
 
   Dog({required this.name, required this.breed, required this.imageUrl});
 
   factory Dog.fromJson(String breed, Map<String, dynamic> json) {
-    return Dog(name: WordPair.random().asPascalCase, breed: breed, imageUrl: json['message']);
+    return Dog(
+      name: WordPair.random().asPascalCase,
+      breed: breed,
+      imageUrl: json['message'],
+    );
   }
 
   @override
@@ -29,7 +38,9 @@ class Dog {
 }
 
 Future<List<String>> fetchDogBreeds() async {
-  final response = await http.get(Uri.parse('https://dog.ceo/api/breeds/list/all'));
+  final response = await http.get(
+    Uri.parse('https://dog.ceo/api/breeds/list/all'),
+  );
   if (response.statusCode == 200) {
     final data = jsonDecode(response.body);
     return List<String>.from(data['message'].keys);
@@ -39,7 +50,9 @@ Future<List<String>> fetchDogBreeds() async {
 }
 
 Future<Dog> fetchRandomDog(String breed) async {
-  final response = await http.get(Uri.parse('https://dog.ceo/api/breed/$breed/images/random'));
+  final response = await http.get(
+    Uri.parse('https://dog.ceo/api/breed/$breed/images/random'),
+  );
   if (response.statusCode == 200) {
     final data = jsonDecode(response.body);
     Dog dog = Dog.fromJson(breed, data);
@@ -90,11 +103,11 @@ class DatabaseHelper {
 
   Future<void> insertDog(String table, Dog dog) async {
     final db = await database;
-    await db.insert(
-      table,
-      {'name': dog.name, 'breed': dog.breed, 'imageUrl': dog.imageUrl},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(table, {
+      'name': dog.name,
+      'breed': dog.breed,
+      'imageUrl': dog.imageUrl,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> deleteDog(String table, Dog dog) async {
@@ -152,6 +165,10 @@ class MyAppState extends ChangeNotifier {
   }
 
   void toggleFavorite(Dog dog) async {
+    if (giveaway.contains(dog)) {
+      return;
+    }
+
     if (favorites.contains(dog)) {
       favorites.remove(dog);
       await dbHelper.deleteDog('adopted_dogs', dog);
@@ -192,11 +209,12 @@ class MyAppState extends ChangeNotifier {
     if (favorites.contains(dog)) {
       await dbHelper.updateDogName('adopted_dogs', dog, newName);
       dog.name = newName;
+      notifyListeners();
     } else if (giveaway.contains(dog)) {
       await dbHelper.updateDogName('giveaway_dogs', dog, newName);
       dog.name = newName;
+      notifyListeners();
     }
-    notifyListeners();
   }
 }
 
@@ -213,7 +231,9 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'DOG ASSOCIATION',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(92, 183, 114, 58)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromARGB(92, 183, 114, 58),
+        ),
         useMaterial3: true,
       ),
       home: MyHomePage(title: 'DOG SHOW'),
@@ -233,7 +253,6 @@ class _MyHomePageState extends State<MyHomePage> {
   Dog? selectedDog;
   String? selectedBreed;
   late Future<List<String>> futureDogBreeds;
-  final MyAppState appState = MyAppState();
   int _selectedIndex = 0;
 
   @override
@@ -264,9 +283,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void _addToFavorites() {
+  void _addToFavorites(BuildContext context) {
     if (selectedDog != null) {
-      appState.toggleFavorite(selectedDog!);
+      Provider.of<MyAppState>(
+        context,
+        listen: false,
+      ).toggleFavorite(selectedDog!);
     }
   }
 
@@ -276,7 +298,8 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Widget _getBodyContent() {
+  Widget _getBodyContent(BuildContext context) {
+    final appState = Provider.of<MyAppState>(context);
     switch (_selectedIndex) {
       case 0:
         return Center(
@@ -291,8 +314,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     return DropdownButton<String>(
                       hint: const Text('Choose a Dog Breed'),
                       value: selectedBreed,
-                      items: snapshot.requireData
-                          .map(
+                      items:
+                          snapshot.requireData
+                              .map(
                                 (breed) => DropdownMenuItem(
                                   value: breed,
                                   child: Text(
@@ -334,7 +358,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       'Dog Name: ',
                       style: const TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w400, 
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                     Text(
@@ -342,28 +366,32 @@ class _MyHomePageState extends State<MyHomePage> {
                       style: const TextStyle(
                         color: Color.fromARGB(238, 183, 114, 58),
                         fontSize: 25,
-                        fontWeight: FontWeight.w500, 
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 10), 
+                    const SizedBox(width: 10),
                     IconButton(
                       icon: Icon(
-                        appState.isFavorite(selectedDog!) ? Icons.favorite : Icons.favorite_border,
-                        color: appState.isFavorite(selectedDog!) ? const Color.fromARGB(255, 183, 114, 58) : Color.fromARGB(238, 183, 114, 58),
+                        appState.isFavorite(selectedDog!)
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        color:
+                            appState.isFavorite(selectedDog!)
+                                ? const Color.fromARGB(255, 183, 114, 58)
+                                : Color.fromARGB(238, 183, 114, 58),
                       ),
-                      onPressed: _addToFavorites,
-                      iconSize: 30, 
+                      onPressed: () => _addToFavorites(context),
+                      iconSize: 30,
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(
                   onPressed: _fetchRandomDog,
-                  child: const Text('Get Another Random Dog',
-                  style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w400, 
-                      ),),
+                  child: const Text(
+                    'Get Another Random Dog',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w400),
+                  ),
                 ),
                 const SizedBox(height: 20),
               ] else if (selectedBreed != null) ...[
@@ -373,11 +401,11 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         );
       case 1:
-        return FavoritesScreen(favorites: appState.favorites, appState: appState);
+        return FavoritesScreen();
       case 2:
-        return GiveawayScreen(giveaway: appState.giveaway, appState: appState);
+        return GiveawayScreen();
       case 3:
-        return AboutMeScreen();
+        return const AboutMeScreen();
       default:
         return Container();
     }
@@ -387,33 +415,24 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color.fromARGB(92, 183, 114, 58),
+        backgroundColor: const Color.fromARGB(92, 183, 114, 58),
         title: Text(widget.title),
       ),
-      body: _getBodyContent(),
+      body: _getBodyContent(context),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         selectedItemColor: const Color.fromARGB(238, 183, 114, 58),
         unselectedItemColor: Colors.grey,
-        backgroundColor: Color.fromARGB(92, 183, 114, 58),
+        backgroundColor: const Color.fromARGB(92, 183, 114, 58),
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
             icon: Icon(Icons.favorite),
             label: 'Adopted Dogs',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.sell),
-            label: 'Giveaway',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.info),
-            label: 'About Me',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.sell), label: 'Giveaway'),
+          BottomNavigationBarItem(icon: Icon(Icons.info), label: 'About Me'),
         ],
       ),
     );
@@ -421,49 +440,18 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 class FavoritesScreen extends StatelessWidget {
-  final List<Dog> favorites;
-  final MyAppState appState;
-
-  const FavoritesScreen({super.key, required this.favorites, required this.appState});
-
-  void _editDogName(BuildContext context, Dog dog, MyAppState appState) {
-    final TextEditingController controller = TextEditingController(text: dog.name);
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Dog Name'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(hintText: 'Enter new name'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                appState.updateDogName(dog, controller.text);
-                Navigator.of(context).pop();
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  const FavoritesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final appState = Provider.of<MyAppState>(context);
+    final favorites = appState.favorites;
+
     if (favorites.isEmpty) {
       return Center(
-        child: Text(
+        child: const Text(
           'No adopted dogs yet!',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w400),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w400),
         ),
       );
     }
@@ -475,68 +463,77 @@ class FavoritesScreen extends StatelessWidget {
       mainAxisSpacing: 5,
       crossAxisCount: 4,
       childAspectRatio: 0.8,
-      children: favorites.map((dog) {
-        return Card(
-          child: GridTile(
-            header: GridTileBar(
-              backgroundColor: const Color.fromARGB(152, 183, 114, 58), 
-              title: Text(
-                dog.name,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              subtitle: Text(
-                'Breed: ${dog.breed}',
-                style: const TextStyle(fontSize: 14, color: Colors.white),
-              ),
-            ),
-            footer: GridTileBar(
-              backgroundColor: const Color.fromARGB(152, 183, 114, 58), 
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.white, size: 20),
-                    onPressed: () {
-                      _editDogName(context, dog, appState);
-                    },
+      children:
+          favorites.map((dog) {
+            return Card(
+              child: GridTile(
+                header: GridTileBar(
+                  backgroundColor: const Color.fromARGB(152, 183, 114, 58),
+                  title: Text(
+                    dog.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.sell, color: Colors.white, size: 20),
-                    onPressed: () {
-                      appState.addToGiveaway(dog);
-                    },
+                  subtitle: Text(
+                    'Breed: ${dog.breed}',
+                    style: const TextStyle(fontSize: 14, color: Colors.white),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.white, size: 20),
-                    onPressed: () {
-                      appState.deleteDog(dog);
-                    },
+                ),
+                footer: GridTileBar(
+                  backgroundColor: const Color.fromARGB(152, 183, 114, 58),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          _editDogName(context, dog, appState);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.sell,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          appState.addToGiveaway(dog);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          appState.deleteDog(dog);
+                        },
+                      ),
+                    ],
                   ),
-                ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: Image.network(dog.imageUrl, fit: BoxFit.cover),
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(4.0),
-              child: Image.network(
-                dog.imageUrl,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
     );
   }
-}
-
-class GiveawayScreen extends StatelessWidget {
-  final List<Dog> giveaway;
-  final MyAppState appState;
-
-  const GiveawayScreen({super.key, required this.giveaway, required this.appState});
 
   void _editDogName(BuildContext context, Dog dog, MyAppState appState) {
-    final TextEditingController controller = TextEditingController(text: dog.name);
+    final TextEditingController controller = TextEditingController(
+      text: dog.name,
+    );
     showDialog(
       context: context,
       builder: (context) {
@@ -565,9 +562,16 @@ class GiveawayScreen extends StatelessWidget {
       },
     );
   }
+}
+
+class GiveawayScreen extends StatelessWidget {
+  const GiveawayScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final appState = Provider.of<MyAppState>(context);
+    final giveaway = appState.giveaway;
+
     if (giveaway.isEmpty) {
       return Center(
         child: Text(
@@ -584,55 +588,99 @@ class GiveawayScreen extends StatelessWidget {
       mainAxisSpacing: 5,
       crossAxisCount: 4,
       childAspectRatio: 0.8,
-      children: giveaway.map((dog) {
-        return Card(
-          child: GridTile(
-            header: GridTileBar(
-              backgroundColor: const Color.fromARGB(152, 183, 114, 58), 
-              title: Text(
-                dog.name,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              subtitle: Text(
-                'Breed: ${dog.breed}',
-                style: const TextStyle(fontSize: 16, color: Colors.white),
-              ),
-            ),
-            footer: GridTileBar(
-              backgroundColor: const Color.fromARGB(152, 183, 114, 58), 
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.white, size: 30),
-                    onPressed: () {
-                      _editDogName(context, dog, appState);
-                    },
+      children:
+          giveaway.map((dog) {
+            return Card(
+              child: GridTile(
+                header: GridTileBar(
+                  backgroundColor: const Color.fromARGB(152, 183, 114, 58),
+                  title: Text(
+                    dog.name,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.white, size: 30),
-                    onPressed: () {
-                      appState.deleteFromGiveaway(dog);
-                    },
+                  subtitle: Text(
+                    'Breed: ${dog.breed}',
+                    style: const TextStyle(fontSize: 16, color: Colors.white),
                   ),
-                ],
+                ),
+                footer: GridTileBar(
+                  backgroundColor: const Color.fromARGB(152, 183, 114, 58),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                        onPressed: () {
+                          _editDogName(context, dog, appState);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                        onPressed: () {
+                          appState.deleteFromGiveaway(dog);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Image.network(dog.imageUrl, fit: BoxFit.cover),
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Image.network(
-                dog.imageUrl,
-                fit: BoxFit.cover,
-              ),
-            ),
+            );
+          }).toList(),
+    );
+  }
+
+  void _editDogName(BuildContext context, Dog dog, MyAppState appState) {
+    final TextEditingController controller = TextEditingController(
+      text: dog.name,
+    );
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Dog Name'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: 'Enter new name'),
           ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                appState.updateDogName(dog, controller.text);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
         );
-      }).toList(),
+      },
     );
   }
 }
 
 class AboutMeScreen extends StatelessWidget {
+  const AboutMeScreen({super.key});
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -644,33 +692,24 @@ class AboutMeScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color.fromARGB(242, 183, 114, 58), 
+              color: Color.fromARGB(242, 183, 114, 58),
             ),
           ),
           SizedBox(height: 10),
           Text(
             'This app helps you find your perfect furry friend.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.black, 
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.black),
           ),
           Text(
             'Adopt a dog and give them a loving home.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.black, 
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.black),
           ),
           Text(
             'If needed, you can also put them up for giveaway!',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.black, 
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.black),
           ),
           SizedBox(height: 30),
           Text(
@@ -678,7 +717,7 @@ class AboutMeScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
-              color: Color.fromARGB(255, 153, 95, 48), 
+              color: Color.fromARGB(255, 153, 95, 48),
             ),
           ),
         ],
