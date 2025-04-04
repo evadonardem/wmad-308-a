@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adoption Certificate Generator</title>
+    <style>
+        /* General Styling */
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: white;
+            max-width: 400px;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 22px;
+            margin-bottom: 15px;
+        }
+
+        .input-field {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s ease-in-out;
+            width: 95%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Adoption Certificate Generator</h1>
+        <input type="text" id="ownerName" placeholder="Your Name" class="input-field">
+        <input type="date" id="adoptionDate" class="input-field">
+        <input type="text" id="petName" placeholder="Pet's Name" class="input-field">
+        <button id="generateBtn">Generate Certificate</button>
+    </div>
+
+    <!-- Load jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("generateBtn").addEventListener("click", () => {
+                const name = document.getElementById("ownerName").value;
+                const adoptionDate = document.getElementById("adoptionDate").value;
+                const petName = document.getElementById("petName").value;
+
+                if (!name || !adoptionDate || !petName) {
+                    alert("Please fill in all fields");
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'mm', 'a4'); // Set paper size to A4 (210mm x 297mm)
+
+                // Background image URL
+                const backgroundImageURL = "https://res.cloudinary.com/dsikudkgl/image/upload/v1743660361/Blue_White_Modern_Illustration_Certificate_of_Excellence_xtioq1.png";
+
+                // Convert Image to Base64 to avoid CORS issues
+                const img = new Image();
+                img.crossOrigin = "Anonymous"; // Prevent CORS issues
+                img.src = backgroundImageURL;
+
+                img.onload = function () {
+                    const pageWidth = doc.internal.pageSize.getWidth(); // Width of the page (in mm)
+                    const pageHeight = doc.internal.pageSize.getHeight(); // Height of the page (in mm)
+                     
+                    // Add background image (scaled properly)
+                    doc.addImage(img, "PNG", 0, 0, pageWidth, pageHeight);
+
+                    // Owner's name
+                    doc.setFontSize(22);
+                    doc.text(name, pageWidth / 2, 80, { align: "center" });
+
+                    // Pet's name
+                    doc.text(petName, pageWidth / 2, 120, { align: "center" });
+
+                    // Adoption date
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(16);
+                    doc.text(`on ${adoptionDate}`, pageWidth / 2, 140, { align: "center" });
+
+                    // Footer message
+                    doc.setFont("helvetica", "italic");
+                    doc.setFontSize(12);
+                    doc.text("Thank you for adopting!", pageWidth / 2, 230, { align: "center" });
+
+                    // Save the PDF with the name provided by the user
+                    doc.save(`${name}_adoption_certificate.pdf`);
+                };
+
+                img.onerror = function () {
+                    alert("Failed to load background image. Please check the URL.");
+                };
+            });
+        });
+    </script>
+</body>
+</html>

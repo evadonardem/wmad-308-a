@@ -1,0 +1,26 @@
+name: dogs1
+description: A Dog Adoption App
+publish_to: 'none'  # Prevents publishing the app to pub.dev
+version: 1.0.0+1  # Version number for the app
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'  # Flutter SDK version constraint
+
+dependencies:
+  flutter:
+    sdk: flutter  # Flutter SDK dependency
+  flutter_lints: ^5.0.0  # For linting and code quality
+  http: ^0.13.0  # Ensure you have this dependency for network requests
+  sqflite: ^2.0.0+4  # Correct version of sqflite
+  sqflite_common_ffi: ^2.0.0+4  # To support SQLite on non-mobile platforms
+  shared_preferences: ^2.0.15  # Add this if you are using SharedPreferences
+  webview_flutter: ^4.0.0  # WebView dependency for displaying HTML certificates
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter  # Testing library for Flutter
+
+flutter:
+  uses-material-design: true  # Enables material design components
+  assets:
+    - assets/certificate.html  # Include the HTML file for the certificate
