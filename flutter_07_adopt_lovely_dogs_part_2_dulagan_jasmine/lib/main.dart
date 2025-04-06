@@ -338,6 +338,6 @@ class AboutPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('About Me')),
       body: const Center(child: Text('Short information about the app creator.')),
-    );
+    ); //jasmine
   }
 }
