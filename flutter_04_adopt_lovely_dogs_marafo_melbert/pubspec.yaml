@@ -1,0 +1,37 @@
+name: flutter_03_lovely_dogs_marafo_melbert
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  http: ^1.3.0
+  english_words: ^4.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    - family: BalooFont
+      fonts:
+        - asset: assets/fonts/BalooDa2-VariableFont_wght.ttf 
+    - family: SigmarFont
+      fonts:
+        - asset: assets/fonts/Sigmar-Regular.ttf
